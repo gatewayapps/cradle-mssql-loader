@@ -1,3 +1,3 @@
-import { MsSqlLoader } from './MsSqlLoader'
+import { MsSqlLoader } from './MsSqlLoader/MsSqlLoader'
 
 export = MsSqlLoader
