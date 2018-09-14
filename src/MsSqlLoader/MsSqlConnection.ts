@@ -59,7 +59,7 @@ export class MsSqlConnection {
   }
 
   public async getModelNames(): Promise<string[]> {
-    const query = 'SELECT object_id, name, SCHEMA_NAME(schema_id) AS schema_name FROM sys.tables WHERE name = \'NotificationQueue\' ORDER BY name'
+    const query = 'SELECT object_id, name, SCHEMA_NAME(schema_id) AS schema_name FROM sys.tables ORDER BY name'
     const connection = await this._getConnection()
     const results = await this._execSql<IMsSqlTableModel>(connection, query)
     connection.release()
