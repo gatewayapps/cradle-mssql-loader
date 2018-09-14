@@ -6,6 +6,7 @@ export interface IMsSqlTableModel {
   name: string
   schema_name: string
   columns?: IMsSqlColumnModel[]
+  references?: { [key: string]: IMsSqlReferenceModel }
 }
 
 export interface IMsSqlColumnModel {
@@ -20,6 +21,22 @@ export interface IMsSqlColumnModel {
   seed_value: number | null
   increment_value: number | null
   default_definition: string | null
+}
+
+export interface IMsSqlReferenceModel {
+  object_id: number
+  name: string
+  ref_table: string
+  columns: IMsSqlReferenceColumnModel[]
+}
+
+export interface IMsSqlReferenceColumnModel {
+  object_id: number
+  name: string
+  local_table: string
+  local_column: string
+  ref_table: string
+  ref_column: string
 }
 
 const DataTypes = {

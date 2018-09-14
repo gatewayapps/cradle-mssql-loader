@@ -1,9 +1,10 @@
 import { IConsole } from '@gatewayapps/cradle'
+import ModelReference, { RelationTypes } from '@gatewayapps/cradle/dist/lib/ModelReference'
 import PropertyType from '@gatewayapps/cradle/dist/lib/PropertyTypes/PropertyType'
 import { Connection, Request } from 'tedious'
 import ConnectionPool from 'tedious-connection-pool'
 import { MsSqlConnectionOptions } from './MsSqlConnectionOptions'
-import { createPropertyType, IMsSqlColumnModel, IMsSqlTableModel } from './MsSqlUtils'
+import { createPropertyType, IMsSqlColumnModel, IMsSqlReferenceColumnModel, IMsSqlReferenceModel, IMsSqlTableModel } from './MsSqlUtils'
 
 export class MsSqlConnection {
   private console: IConsole
@@ -58,7 +59,7 @@ export class MsSqlConnection {
   }
 
   public async getModelNames(): Promise<string[]> {
-    const query = 'SELECT object_id, name, SCHEMA_NAME(schema_id) AS schema_name FROM sys.tables ORDER BY name'
+    const query = 'SELECT object_id, name, SCHEMA_NAME(schema_id) AS schema_name FROM sys.tables WHERE name = \'NotificationQueue\' ORDER BY name'
     const connection = await this._getConnection()
     const results = await this._execSql<IMsSqlTableModel>(connection, query)
     connection.release()
@@ -104,11 +105,52 @@ export class MsSqlConnection {
   }
 
   public async getModelReferenceNames(modelName: string): Promise<string[]> {
-    const query = `SELECT OBJECT_NAME(referenced_object_id) AS RefName FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('${modelName}')`
+    const query = `
+    SELECT fk.object_id, fk.name, OBJECT_NAME(fk.parent_object_id) AS local_table, pc.name AS local_column,
+      OBJECT_NAME(fk.referenced_object_id) AS ref_table, rc.name AS ref_column
+    FROM sys.foreign_keys fk
+    INNER JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+    INNER JOIN sys.columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+    INNER JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+    WHERE fk.parent_object_id = OBJECT_ID('${modelName}')`
     const connection = await this._getConnection()
-    const results = await this._execSql<{ RefName: string }>(connection, query)
+    const results = await this._execSql<IMsSqlReferenceColumnModel>(connection, query)
     connection.release()
-    return results.map((row) => row.RefName)
+
+    const modelReferences: { [key: string]: IMsSqlReferenceModel } = results.reduce((obj, row) => {
+      if (!obj[row.name]) {
+        const refModel: IMsSqlReferenceModel = {
+          columns: [],
+          name: row.name,
+          object_id: row.object_id,
+          ref_table: row.ref_table,
+        }
+        obj[row.name] = refModel
+      }
+      obj[row.name].columns.push(row)
+      return obj
+    }, {})
+    if (this.modelCache[modelName]) {
+      this.modelCache[modelName].references = modelReferences
+    }
+    return Object.keys(modelReferences)
+  }
+
+  public async getModelReferenceType(modelName: string, referenceName: string): Promise<ModelReference> {
+    if (this.modelCache[modelName]) {
+      const model = this.modelCache[modelName]
+
+      if (model.references && model.references[referenceName]) {
+        const modelRef = model.references[referenceName]
+
+        if (modelRef.columns.length > 0) {
+          const localProperty = modelRef.columns.map((c) => c.local_column).join(',')
+          return new ModelReference(localProperty, modelRef.ref_table, RelationTypes.Single)
+        }
+      }
+    }
+
+    return new ModelReference('', '', RelationTypes.Single)
   }
 
   public async test(): Promise<void> {

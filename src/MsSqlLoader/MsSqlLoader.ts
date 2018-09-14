@@ -17,13 +17,18 @@ export class MsSqlLoader extends CradleLoaderBase {
   }
 
   public readModelReferenceType(modelName: string, referenceName: string): Promise<ModelReference> {
-    return Promise.resolve(new ModelReference('', '', RelationTypes.Single))
+    if (this.connection) {
+      return this.connection.getModelReferenceType(modelName, referenceName)
+    }
+
+    throw new Error('MsSqlConnection is not defined')
   }
 
   public readModelPropertyType(modelName: string, propertyName: string): Promise<PropertyType> {
     if (this.connection) {
       return this.connection.getModelPropertyType(modelName, propertyName)
     }
+
     throw new Error('MsSqlConnection is not defined')
   }
 
