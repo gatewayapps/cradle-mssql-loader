@@ -25,10 +25,10 @@
     "tedious-connection-pool": "^1.0.5"
   },
   "peerDependencies": {
-    "@gatewayapps/cradle": ">=0.0.9"
+    "@gatewayapps/cradle": ">=0.0.10"
   },
   "devDependencies": {
-    "@gatewayapps/cradle": "0.0.9",
+    "@gatewayapps/cradle": "0.0.10",
     "@types/tedious": "^2.6.1",
     "@types/tedious-connection-pool": "^1.0.1",
     "tslint": "^5.11.0",

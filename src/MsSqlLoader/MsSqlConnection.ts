@@ -1,27 +1,9 @@
-import { IConsole, PropertyTypes } from '@gatewayapps/cradle'
+import { IConsole } from '@gatewayapps/cradle'
 import PropertyType from '@gatewayapps/cradle/dist/lib/PropertyTypes/PropertyType'
 import { Connection, Request } from 'tedious'
 import ConnectionPool from 'tedious-connection-pool'
 import { MsSqlConnectionOptions } from './MsSqlConnectionOptions'
-
-export interface IMsSqlTableModel {
-  object_id: number
-  name: string
-  schema_name: string
-  columns?: IMsSqlColumnModel[]
-}
-
-export interface IMsSqlColumnModel {
-  name: string
-  data_type: string
-  max_length: number
-  precision: number
-  scale: number
-  is_nullable: number
-  is_primary_key: number
-  is_identity: number
-  default_Definition: string | null
-}
+import { createPropertyType, IMsSqlColumnModel, IMsSqlTableModel } from './MsSqlUtils'
 
 export class MsSqlConnection {
   private console: IConsole
@@ -47,6 +29,34 @@ export class MsSqlConnection {
     this.pool.drain()
   }
 
+  public async getModelMetadata(modelName): Promise<object> {
+    if (this.modelCache[modelName]) {
+      const model = this.modelCache[modelName]
+      const metadata: any = {
+        schemaName: model.schema_name,
+        tableName: model.name,
+      }
+      if (model.columns) {
+        metadata.properties = model.columns.reduce((obj, column) => {
+          const columnMetadata: any = {
+            sqlDataType: column.data_type
+          }
+
+          if (column.default_definition !== null) {
+            columnMetadata.sqlDefault = column.default_definition
+          }
+
+          obj[column.name] = columnMetadata
+
+          return obj
+        }, {})
+      }
+      return metadata
+    }
+
+    return {}
+  }
+
   public async getModelNames(): Promise<string[]> {
     const query = 'SELECT object_id, name, SCHEMA_NAME(schema_id) AS schema_name FROM sys.tables ORDER BY name'
     const connection = await this._getConnection()
@@ -63,11 +73,13 @@ export class MsSqlConnection {
   public async getModelPropertyNames(modelName: string): Promise<string[]> {
     const query = `
     SELECT c.[name], TYPE_NAME(c.user_type_id) AS data_type, c.max_length, c.[precision], c.scale, c.is_nullable,
-      CAST(IIF(ixc.index_column_id IS NOT NULL, 1, 0) AS BIT) AS is_primary_key, c.is_identity, df.[definition] AS default_definition
+      CAST(IIF(ixc.index_column_id IS NOT NULL, 1, 0) AS BIT) AS is_primary_key, c.is_identity, ic.seed_value,
+      ic.increment_value, df.[definition] AS default_definition
     FROM sys.columns c
     LEFT OUTER JOIN sys.indexes ix ON ix.object_id = c.object_id AND ix.is_primary_key = 1
     LEFT OUTER JOIN sys.index_columns ixc ON ixc.object_id = c.object_id AND ixc.index_id = ix.index_id AND ixc.column_id = c.column_id
     LEFT OUTER JOIN sys.default_constraints df ON df.parent_object_id = c.object_id AND df.parent_column_id = c.column_id
+    LEFT OUTER JOIN sys.identity_columns ic ON ic.object_id = c.object_id AND ic.column_id = c.column_id
     WHERE c.object_id = OBJECT_ID('${modelName}')
     `
     const connection = await this._getConnection()
@@ -84,47 +96,7 @@ export class MsSqlConnection {
     if (model !== undefined && model.columns !== undefined) {
       const column = model.columns.find((col) => col.name === propertyName)
       if (column !== undefined) {
-        switch (column.data_type.toLowerCase()) {
-          case 'bigint':
-          case 'smallint':
-          case 'int':
-          case 'tinyint':
-            return new PropertyTypes.IntegerPropertyType(undefined, undefined, undefined,
-              column.is_nullable === 1, column.is_primary_key === 1, column.default_Definition)
-
-          case 'decimal':
-          case 'numeric':
-          case 'smallmoney':
-          case 'money':
-          case 'float':
-          case 'real':
-            return new PropertyTypes.DecimalPropertyType(column.precision, column.scale, undefined, undefined,
-              column.is_nullable === 1, column.is_primary_key === 1, column.default_Definition)
-
-          case 'char':
-          case 'varchar':
-          case 'text':
-          case 'nchar':
-          case 'nvarchar':
-          case 'ntext':
-            return new PropertyTypes.StringPropertyType(column.max_length, null, undefined, column.is_nullable === 1,
-              column.is_primary_key === 1, column.default_Definition)
-
-          case 'uniqueidentifier':
-            return new PropertyTypes.UniqueIdentifierPropertyType(column.is_nullable === 1, column.is_primary_key === 1,
-              column.default_Definition !== null, column.default_Definition)
-
-          case 'date':
-          case 'datetime2':
-          case 'datetime':
-          case 'datetimeoffset':
-          case 'smalldatetime':
-          case 'time':
-            return new PropertyTypes.DateTimePropertyType(column.is_nullable === 1, column.is_primary_key === 1, column.default_Definition)
-
-          default:
-            throw new Error(`Unsupported data type ${column.data_type} for ${model.name}.${column.name}`)
-        }
+        return createPropertyType(model, column)
       }
     }
 

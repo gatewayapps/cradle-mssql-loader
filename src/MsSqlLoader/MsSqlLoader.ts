@@ -1,4 +1,4 @@
-import { CradleLoaderBase, CradleModel, CradleSchema, IConsole, PropertyTypes } from '@gatewayapps/cradle'
+import { CradleLoaderBase, CradleSchema, IConsole } from '@gatewayapps/cradle'
 import ModelReference, { RelationTypes } from '@gatewayapps/cradle/dist/lib/ModelReference'
 import PropertyType from '@gatewayapps/cradle/dist/lib/PropertyTypes/PropertyType'
 import { MsSqlConnection } from './MsSqlConnection'
@@ -6,7 +6,6 @@ import { MsSqlConnectionOptions } from './MsSqlConnectionOptions'
 
 export class MsSqlLoader extends CradleLoaderBase {
   private console?: IConsole
-  private options?: {[key: string]: any}
   private connection?: MsSqlConnection
 
   public async readModelReferenceNames(modelName: string): Promise<string[]> {
@@ -18,7 +17,6 @@ export class MsSqlLoader extends CradleLoaderBase {
   }
 
   public readModelReferenceType(modelName: string, referenceName: string): Promise<ModelReference> {
-    // this.writeLog(`in readModelReferenceType for ${modelName}.${referenceName}`)
     return Promise.resolve(new ModelReference('', '', RelationTypes.Single))
   }
 
@@ -48,14 +46,16 @@ export class MsSqlLoader extends CradleLoaderBase {
   }
 
   public readModelMetadata(modelName: string): Promise<object> {
-    // this.writeLog(`in readModelMetadata for ${modelName}`)
-    return Promise.resolve({})
+    if (this.connection) {
+      return this.connection.getModelMetadata(modelName)
+    }
+
+    throw new Error('MsSqlConnection is not defined')
   }
 
   public prepareLoader(options: {[key: string]: any}, console: IConsole): Promise<void> {
     try {
       this.console = console
-      this.options = options
       this.connection = new MsSqlConnection(MsSqlConnectionOptions.parse(options), this.console)
       return this.connection.test()
     } catch (err) {
@@ -64,17 +64,10 @@ export class MsSqlLoader extends CradleLoaderBase {
   }
 
   public finalizeSchema(schema: CradleSchema): Promise<CradleSchema> {
-    this.writeLog('in finializeSchema')
     if (this.connection) {
       this.connection.dispose()
       this.connection = undefined
     }
     return super.finalizeSchema(schema)
-  }
-
-  private writeLog(message: string) {
-    if (this.console) {
-      this.console.log(message)
-    }
   }
 }
