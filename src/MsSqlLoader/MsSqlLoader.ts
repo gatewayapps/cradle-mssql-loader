@@ -4,6 +4,7 @@ import PropertyType from '@gatewayapps/cradle/dist/lib/PropertyTypes/PropertyTyp
 import { MsSqlConnection } from './MsSqlConnection'
 import { MsSqlConnectionOptions } from './MsSqlConnectionOptions'
 
+
 export class MsSqlLoader extends CradleLoaderBase {
   private console?: IConsole
   private connection?: MsSqlConnection
@@ -13,7 +14,7 @@ export class MsSqlLoader extends CradleLoaderBase {
       return this.connection.getModelReferenceNames(modelName)
     }
 
-    throw new Error('MsSqlConnection is not defined')
+    throw new Error('MsSqlConnection is not defined');
   }
 
   public readModelReferenceType(modelName: string, referenceName: string): Promise<ModelReference> {
