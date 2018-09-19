@@ -4,6 +4,7 @@ import PropertyType from '@gatewayapps/cradle/dist/lib/PropertyTypes/PropertyTyp
 import { MsSqlConnection } from './MsSqlConnection'
 import { MsSqlConnectionOptions } from './MsSqlConnectionOptions'
 
+
 export class MsSqlLoader extends CradleLoaderBase {
   private console?: IConsole
   private connection?: MsSqlConnection
