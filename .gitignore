@@ -63,3 +63,4 @@ typings/
 # Compiled output
 dist/
 out/
+examples/cradle.config.js
