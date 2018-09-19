@@ -14,7 +14,7 @@ export class MsSqlLoader extends CradleLoaderBase {
       return this.connection.getModelReferenceNames(modelName)
     }
 
-    throw new Error('MsSqlConnection is not defined')
+    throw new Error('MsSqlConnection is not defined');
   }
 
   public readModelReferenceType(modelName: string, referenceName: string): Promise<ModelReference> {
