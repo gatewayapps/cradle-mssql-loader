@@ -1,5 +1,5 @@
 {
-  "name": "cradle-mssql-loader",
+  "name": "@gatewayapps/cradle-mssql-loader",
   "version": "0.1.0",
   "description": "Cradle loader for reading schema from a Microsoft SQL Server database",
   "main": "./dist/index.js",
