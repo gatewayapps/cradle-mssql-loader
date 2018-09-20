@@ -139,8 +139,7 @@ function createUniqueIdentifierPropertyType(column: IMsSqlColumnModel) {
   return new PropertyTypes.UniqueIdentifierPropertyType(
     column.is_nullable,
     column.is_primary_key,
-    column.default_definition !== null,
-    parseDefaultDefinition(column.default_definition)
+    column.default_definition !== null
   )
 }
 
