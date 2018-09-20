@@ -35,7 +35,7 @@ export class MsSqlConnectionOptions {
   }
 
   public getConnectionConfig(): ConnectionConfig {
-    const serverParts = this.server.split(/:|;|\\/)
+    const serverParts = this.server.split(/:|,|\\/)
     const userParts = this.userName.split('\\')
 
     let port: number | undefined
